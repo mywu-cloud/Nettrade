@@ -28,12 +28,29 @@
     </div>
 
     <nav class="day" aria-label="資料日期">
-      <button class="icon-btn" id="prevDay" aria-label="前一個交易日">‹</button>
-      <label class="day-pick">
-        <span class="sr-only">選擇日期</span>
-        <select id="dateSelect"></select>
-      </label>
-      <button class="icon-btn" id="nextDay" aria-label="下一個交易日">›</button>
+      <div class="seg mode-seg" id="modeSeg" role="radiogroup" aria-label="單日或區間">
+        <button role="radio" data-mode="day" aria-checked="true">單日</button>
+        <button role="radio" data-mode="range" aria-checked="false">區間</button>
+      </div>
+      <div class="day-single" id="daySingle">
+        <button class="icon-btn" id="prevDay" aria-label="前一個交易日">‹</button>
+        <label class="day-pick">
+          <span class="sr-only">選擇日期</span>
+          <select id="dateSelect"></select>
+        </label>
+        <button class="icon-btn" id="nextDay" aria-label="下一個交易日">›</button>
+      </div>
+      <div class="day-range" id="dayRange" hidden>
+        <label class="day-pick">
+          <span class="sr-only">起始日</span>
+          <select id="fromSelect"></select>
+        </label>
+        <span class="range-sep" aria-hidden="true">～</span>
+        <label class="day-pick">
+          <span class="sr-only">結束日</span>
+          <select id="toSelect"></select>
+        </label>
+      </div>
     </nav>
 
     <button class="theme-btn" id="themeBtn" aria-label="切換淺色／深色">
@@ -58,6 +75,15 @@
       </label>
     </div>
   </section>
+
+  <div class="presets" id="presets" hidden>
+    <span>快速選擇</span>
+    <button data-n="5">近 5 日</button>
+    <button data-n="10">近 10 日</button>
+    <button data-n="20">近 20 日</button>
+    <button data-n="60">近 60 日</button>
+    <button data-n="0">全部</button>
+  </div>
 
   <div class="notice" id="notice" hidden></div>
 

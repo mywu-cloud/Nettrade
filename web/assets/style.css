@@ -70,6 +70,24 @@ button, select, input { font: inherit; color: inherit; }
   appearance: none; border: 1px solid var(--rule); background: var(--surface);
   border-radius: 8px; padding: 7px 14px; font-weight: 700; font-size: 16px; cursor: pointer; text-align: center;
 }
+.day { flex-wrap: wrap; justify-content: center; gap: 8px; }
+.day-single, .day-range { display: flex; align-items: center; gap: 4px; }
+.day-range[hidden], .day-single[hidden], .presets[hidden] { display: none; }
+.day-range .day-pick select { font-size: 15px; padding: 7px 10px; }
+.range-sep { color: var(--muted); padding: 0 2px; }
+.mode-seg button { padding: 5px 12px; }
+
+.presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; font-size: 13px; color: var(--muted); }
+.presets span { margin-right: 4px; }
+.presets button {
+  border: 1px solid var(--rule); background: var(--surface); border-radius: 14px; padding: 3px 12px; cursor: pointer; font-size: 13px; color: var(--ink);
+}
+.presets button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.presets button:disabled { opacity: .35; cursor: default; }
+
+.days-badge { display: inline-block; margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 9px; vertical-align: 1px; color: var(--muted); border: 1px solid var(--rule); }
+.days-badge.full { color: var(--ink); border-color: var(--ink); font-weight: 700; }
+
 .icon-btn {
   width: 36px; height: 36px; border-radius: 8px; border: 1px solid transparent;
   background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted);
