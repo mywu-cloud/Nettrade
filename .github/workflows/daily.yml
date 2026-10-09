@@ -4,19 +4,16 @@ on:
   schedule:
     # GitHub cron 用 UTC：10:40 UTC = 台北 18:40（法人資料約 15:00–16:30 公布，主力較晚）
     - cron: "40 10 * * 1-5"
-  push:                       # 改了網頁或設定時，只重新部署網頁（不抓資料）
-    branches: [main]
-    paths: ["web/**", ".github/workflows/daily.yml"]
   workflow_dispatch:          # 可在 Actions 頁面手動執行
     inputs:
       only:
         description: "只跑指定來源（fubon,wantgoo,twse），空白=全部"
         required: false
 
+# 網站由 Cloudflare Pages 部署：這裡只負責抓資料並 commit 回 repo，
+# Cloudflare 偵測到新 commit 會自動重新部署（Build output directory = web）
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: daily-chip-rank
@@ -33,20 +30,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-        if: github.event_name != 'push'
 
       - name: Install
-        if: github.event_name != 'push'
         run: |
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
       - name: Test parsers
-        if: github.event_name != 'push'
         run: python -m pytest -q tests
 
       - name: Scrape
-        if: github.event_name != 'push'
         env:
           TZ: Asia/Taipei
           ONLY: ${{ github.event.inputs.only }}
@@ -63,7 +56,6 @@ jobs:
           exit $code
 
       - name: Commit data
-        if: github.event_name != 'push'
         run: |
           git config user.name  "chip-rank-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -74,16 +66,3 @@ jobs:
           git pull --rebase --autostash
           git push
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web
-
-  deploy:
-    needs: scrape
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
