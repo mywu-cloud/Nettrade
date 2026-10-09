@@ -1,0 +1,7 @@
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.0
+PyYAML>=6.0
+openpyxl>=3.1
+playwright>=1.45      # 只有玩股網需要；不用玩股網可省略
+pytest>=8.0           # 測試用

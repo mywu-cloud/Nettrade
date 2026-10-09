@@ -1,0 +1,95 @@
+# ============================================================
+#  台股法人與主力買賣超排行 — 抓取設定
+#  每個 board = 一張「買超 / 賣超」排行表
+#  新增或修改來源只要改這個檔，不用改程式
+# ============================================================
+
+output:
+  web_data_dir: web/data        # 前端讀取的 JSON 位置（會一起部署）
+  archive_dir: archive          # CSV / Excel 封存（不部署）
+  top_n: 50                     # 每邊（買超、賣超）保留幾名
+  write_csv: true
+  write_xlsx: true
+  keep_raw: true                # 保存原始 HTML/JSON 方便除錯解析
+
+http:
+  timeout: 20
+  retries: 3
+  delay_seconds: [2.0, 4.0]     # 每次請求之間隨機等待（禮貌抓取）
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
+
+categories:
+  foreign:     外資
+  trust:       投信
+  dealer:      自營商
+  institution: 三大法人合計
+  major:       主力
+
+markets:
+  twse: 上市
+  tpex: 上櫃
+
+sources:
+  # ---------- 富邦 e 點通（MoneyDJ 架構，靜態 HTML / Big5）----------
+  # 以下網址已於 2026-10-09 在瀏覽器確認（外資 / 投信 / 自營商 / 主力、上市 / 上櫃）
+  fubon:
+    name: 富邦 e 點通
+    enabled: true
+    boards:
+      - category: foreign
+        market: twse
+        url: https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZGK_D.djhtm
+      - category: trust
+        market: twse
+        url: https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZGK_DD.djhtm
+      - category: dealer
+        market: twse
+        url: https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZGK_DB.djhtm
+      # 主力：買超、賣超是兩個頁面，程式會合併成一張表（欄位依表頭自動對應）
+      - category: major
+        market: twse
+        url: https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZG_F.djhtm
+        url_sell: https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZG_FA.djhtm
+      # 上櫃：zgk.djhtm?A=<D 外資 / DD 投信 / DB 自營商>&B=1（上櫃）&C=1（一日）
+      - category: foreign
+        market: tpex
+        url: https://fubon-ebrokerdj.fbs.com.tw/z/zg/zgk.djhtm?A=D&B=1&C=1
+      - category: trust
+        market: tpex
+        url: https://fubon-ebrokerdj.fbs.com.tw/z/zg/zgk.djhtm?A=DD&B=1&C=1
+      - category: dealer
+        market: tpex
+        url: https://fubon-ebrokerdj.fbs.com.tw/z/zg/zgk.djhtm?A=DB&B=1&C=1
+
+  # ---------- 玩股網（前端渲染 + Cloudflare，需 Playwright）----------
+  wantgoo:
+    name: 玩股網
+    enabled: true
+    boards:
+      - category: foreign
+        market: twse
+        url: https://www.wantgoo.com/stock/institutional-investors/foreign/net-buy-sell-rank
+      - category: trust
+        market: twse
+        url: https://www.wantgoo.com/stock/institutional-investors/investment-trust/net-buy-sell-rank
+      - category: dealer
+        market: twse
+        url: https://www.wantgoo.com/stock/institutional-investors/dealer/net-buy-sell-rank
+      - category: major
+        market: twse
+        url: https://www.wantgoo.com/stock/major-investors/net-buy-sell-rank
+        enabled: false          # 主力頁網址請先手動確認後再改成 true
+
+  # ---------- 證交所官方（備援 / 交叉驗證，JSON API 最穩定）----------
+  twse:
+    name: 證交所
+    enabled: true
+    boards:
+      - category: foreign
+        market: twse
+      - category: trust
+        market: twse
+      - category: dealer
+        market: twse
+      - category: institution
+        market: twse

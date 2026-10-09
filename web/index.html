@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>法人籌碼排行</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <script>
+    // 先決定主題再渲染，避免閃白
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (e) {}
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1>法人籌碼排行</h1>
+      <p class="sub" id="subline">每日買賣超前段班</p>
+    </div>
+
+    <nav class="day" aria-label="資料日期">
+      <button class="icon-btn" id="prevDay" aria-label="前一個交易日">‹</button>
+      <label class="day-pick">
+        <span class="sr-only">選擇日期</span>
+        <select id="dateSelect"></select>
+      </label>
+      <button class="icon-btn" id="nextDay" aria-label="下一個交易日">›</button>
+    </nav>
+
+    <button class="theme-btn" id="themeBtn" aria-label="切換淺色／深色">
+      <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+      <span id="themeLabel">深色</span>
+    </button>
+  </header>
+
+  <section class="controls" aria-label="篩選">
+    <div class="tabs" id="catTabs" role="tablist" aria-label="類別"></div>
+
+    <div class="filters">
+      <div class="seg" id="mktSeg" role="radiogroup" aria-label="市場"></div>
+      <label class="field">
+        <span>來源</span>
+        <select id="srcSelect"></select>
+      </label>
+      <label class="field search">
+        <span class="sr-only">搜尋股票</span>
+        <input id="search" type="search" placeholder="搜尋代號或名稱" autocomplete="off">
+      </label>
+    </div>
+  </section>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <p class="tally" id="tally"></p>
+
+  <div class="side-switch seg" id="sideSwitch" role="radiogroup" aria-label="買超或賣超">
+    <button role="radio" data-side="buy" aria-checked="true">買超</button>
+    <button role="radio" data-side="sell" aria-checked="false">賣超</button>
+  </div>
+
+  <main class="board" id="board" data-side="buy">
+    <section class="col col-buy" aria-labelledby="hBuy">
+      <h2 id="hBuy"><span class="dot up"></span>買超</h2>
+      <ol class="rows" id="buyList"></ol>
+    </section>
+    <div class="spine" aria-hidden="true"></div>
+    <section class="col col-sell" aria-labelledby="hSell">
+      <h2 id="hSell"><span class="dot down"></span>賣超</h2>
+      <ol class="rows" id="sellList"></ol>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p id="sourceLink"></p>
+    <p>資料由程式自動整理自公開網頁，可能有延遲或誤差，僅供參考，不構成任何投資建議。紅色為買超／上漲，綠色為賣超／下跌。</p>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
