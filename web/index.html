@@ -94,6 +94,48 @@
     <button role="radio" data-side="sell" aria-checked="false">賣超</button>
   </div>
 
+  <section class="combo" id="combo" hidden aria-label="綜合分析">
+    <div class="combo-bar">
+      <div class="chips" id="comboFilter" role="radiogroup" aria-label="篩選訊號">
+        <button data-f="all">全部</button>
+        <button data-f="buy2">共振買超</button>
+        <button data-f="sell2">共振賣超</button>
+        <button data-f="tybuy">土洋同買</button>
+        <button data-f="tysell">土洋同賣</button>
+        <button data-f="imbuy">法人＋主力同買</button>
+        <button data-f="imsell">法人＋主力同賣</button>
+        <button data-f="fight">土洋對作</button>
+      </div>
+      <div class="combo-opts">
+      <button class="toggle" id="etfToggle" aria-pressed="true" title="ETF 常因造市、避險出現大量買賣超">排除 ETF</button>
+      <label class="field">
+        <span>排序</span>
+        <select id="comboSort">
+          <option value="score">共振分數</option>
+          <option value="inst">三大法人合計</option>
+          <option value="major">主力</option>
+          <option value="foreign">外資</option>
+          <option value="trust">投信</option>
+          <option value="dealer">自營商</option>
+        </select>
+      </label>
+      </div>
+    </div>
+    <div class="combo-wrap">
+      <table class="combo-table">
+        <thead>
+          <tr>
+            <th class="c-rk">名次</th><th class="c-cd">股票代碼</th><th class="c-nm">名稱</th>
+            <th class="c-num">外資</th><th class="c-num">投信</th><th class="c-num">自營商</th>
+            <th class="c-num c-inst">三大法人</th><th class="c-num">主力</th>
+            <th class="c-num">收盤價</th><th class="c-num">漲跌</th><th class="c-sig">共振訊號</th>
+          </tr>
+        </thead>
+        <tbody id="comboBody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <main class="board" id="board" data-side="buy">
     <section class="col col-buy" aria-labelledby="hBuy">
       <h2 id="hBuy"><span class="dot up"></span>買超</h2>

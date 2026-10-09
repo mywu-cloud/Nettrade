@@ -6,7 +6,8 @@
   "use strict";
 
   const CAT_ORDER = ["foreign", "trust", "dealer", "institution", "major"];
-  const CAT_NAME = { foreign: "外資", trust: "投信", dealer: "自營商", institution: "三大法人", major: "主力" };
+  const CAT_NAME = { foreign: "外資", trust: "投信", dealer: "自營商", institution: "三大法人", major: "主力", combo: "綜合分析" };
+  const COMBO_CATS = ["foreign", "trust", "dealer", "major"];
   const MKT_ORDER = ["twse", "tpex"];
   const MKT_NAME = { twse: "上市", tpex: "上櫃" };
   const SRC_ORDER = ["fubon", "wantgoo", "twse"];
@@ -15,7 +16,7 @@
 
   const $ = (id) => document.getElementById(id);
   const cache = new Map();
-  const state = { dates: [], date: null, cat: "foreign", mkt: "twse", src: null, side: "buy", q: "",
+  const state = { dates: [], date: null, cat: "foreign", mkt: "twse", src: null, side: "buy", q: "", cf: "all", cs: "score", etf: "1",
                   mode: "day", from: null, to: null, preset: null };
   let day = null;             // 單日：當日 JSON；區間：彙總後的虛擬「日」物件（結構相同）
 
@@ -45,11 +46,12 @@
   /* ---------- 網址 hash ---------- */
   function readHash() {
     const h = new URLSearchParams(location.hash.slice(1));
-    ["date", "cat", "mkt", "src", "side", "mode", "from", "to"].forEach((k) => { if (h.get(k)) state[k] = h.get(k); });
+    ["date", "cat", "mkt", "src", "side", "mode", "from", "to", "cf", "cs", "etf"].forEach((k) => { if (h.get(k)) state[k] = h.get(k); });
     if (state.mode !== "range") state.mode = "day";
   }
   function writeHash() {
     const o = { cat: state.cat, mkt: state.mkt, src: state.src || "", side: state.side };
+    if (state.cat === "combo") Object.assign(o, { cf: state.cf, cs: state.cs, etf: state.etf });
     if (state.mode === "range") Object.assign(o, { mode: "range", from: state.from, to: state.to });
     else o.date = state.date;
     const h = new URLSearchParams(o);
@@ -162,14 +164,17 @@
 
     // 類別
     const inSrc = boards.filter((b) => b.source === state.src);
-    if (!inSrc.some((b) => b.category === state.cat)) state.cat = (CAT_ORDER.find((c) => inSrc.some((b) => b.category === c))) || state.cat;
-    $("catTabs").innerHTML = CAT_ORDER.filter((c) => has((b) => b.category === c)).map((c) => {
-      const ok = inSrc.some((b) => b.category === c);
-      return `<button role="tab" data-cat="${c}" aria-selected="${c === state.cat}" ${ok ? "" : "disabled"}>${CAT_NAME[c]}</button>`;
-    }).join("");
+    const comboOk = COMBO_CATS.filter((c) => inSrc.some((b) => b.category === c)).length >= 2;
+    const catOk = (c) => (c === "combo" ? comboOk : inSrc.some((b) => b.category === c));
+    if (!catOk(state.cat)) state.cat = (CAT_ORDER.find((c) => inSrc.some((b) => b.category === c))) || state.cat;
+    const tabs = CAT_ORDER.filter((c) => has((b) => b.category === c));
+    if (has((b) => COMBO_CATS.includes(b.category))) tabs.push("combo");
+    $("catTabs").innerHTML = tabs.map((c) =>
+      `<button role="tab" data-cat="${c}" aria-selected="${c === state.cat}" ${catOk(c) ? "" : "disabled"}${c === "combo" ? ' class="tab-combo"' : ""}>${CAT_NAME[c]}</button>`
+    ).join("");
 
     // 市場
-    const inCat = inSrc.filter((b) => b.category === state.cat);
+    const inCat = inSrc.filter((b) => (state.cat === "combo" ? COMBO_CATS.includes(b.category) : b.category === state.cat));
     if (!inCat.some((b) => b.market === state.mkt)) state.mkt = (MKT_ORDER.find((m) => inCat.some((b) => b.market === m))) || state.mkt;
     $("mktSeg").innerHTML = MKT_ORDER.map((m) => {
       const ok = inCat.some((b) => b.market === m);
@@ -252,6 +257,11 @@
   async function renderBoard() {
     renderControls();
     writeHash();
+    const isCombo = state.cat === "combo";
+    $("combo").hidden = !isCombo;
+    $("board").hidden = isCombo;
+    $("sideSwitch").style.display = isCombo ? "none" : "";
+    if (isCombo) return renderCombo();
     const b = pickBoard(day, state.src, state.cat, state.mkt);
     const range = state.mode === "range";
     const demo = day && day.demo ? "目前顯示的是<b>示範資料</b>，執行一次爬蟲後會換成真實資料。" : "";
@@ -321,6 +331,119 @@
     renderBoard();
   }
 
+  /* ---------- 綜合分析：外資／投信／自營商／主力交叉比對 ---------- */
+  const COMBO_FILTERS = {
+    all: () => true,
+    buy2: (x) => x.score >= 2,
+    sell2: (x) => x.score <= -2,
+    tybuy: (x) => x.v.foreign > 0 && x.v.trust > 0,
+    tysell: (x) => x.v.foreign < 0 && x.v.trust < 0,
+    imbuy: (x) => x.inst > 0 && x.v.major > 0,
+    imsell: (x) => x.inst < 0 && x.v.major < 0,
+    fight: (x) => x.v.foreign != null && x.v.trust != null && Math.sign(x.v.foreign) !== Math.sign(x.v.trust),
+  };
+
+  function comboRows() {
+    const stocks = new Map();
+    const present = [];
+    COMBO_CATS.forEach((cat) => {
+      const b = pickBoard(day, state.src, cat, state.mkt);
+      if (!b || b.status !== "ok") return;
+      present.push(cat);
+      [...b.buy, ...b.sell].forEach((r) => {
+        let x = stocks.get(r.code);
+        if (!x) { x = { code: r.code, name: r.name, close: null, change: null, v: {} }; stocks.set(r.code, x); }
+        x.v[cat] = (x.v[cat] || 0) + r.net;
+        if (x.close == null && r.close != null) { x.close = r.close; x.change = r.change ?? null; }
+      });
+    });
+    const rows = [...stocks.values()].map((x) => {
+      const insts = ["foreign", "trust", "dealer"].filter((c) => x.v[c] != null);
+      x.inst = insts.length ? insts.reduce((t, c) => t + x.v[c], 0) : null;
+      const vals = present.map((c) => x.v[c]).filter((n) => n != null);
+      x.score = vals.filter((n) => n > 0).length - vals.filter((n) => n < 0).length;
+      x.tags = comboTags(x, present);
+      return x;
+    });
+    return { rows, present };
+  }
+
+  function comboTags(x, present) {
+    const v = x.v, t = [];
+    const all = (fn) => present.length >= 3 && present.every((c) => v[c] != null && fn(v[c]));
+    if (all((n) => n > 0)) t.push(["up", present.includes("major") ? "四方同買" : "三法人同買"]);
+    else if (all((n) => n < 0)) t.push(["down", present.includes("major") ? "四方同賣" : "三法人同賣"]);
+    if (v.foreign > 0 && v.trust > 0) t.push(["up", "土洋同買"]);
+    if (v.foreign < 0 && v.trust < 0) t.push(["down", "土洋同賣"]);
+    if (x.inst > 0 && v.major > 0) t.push(["up", "法人＋主力"]);
+    if (x.inst < 0 && v.major < 0) t.push(["down", "法人＋主力賣"]);
+    if (COMBO_FILTERS.fight(x)) t.push(["mid", v.trust > 0 ? "投信買外資賣" : "外資買投信賣"]);
+    if (v.major != null && x.inst != null && Math.sign(v.major) !== Math.sign(x.inst)) t.push(["mid", v.major > 0 ? "主力買法人賣" : "法人買主力賣"]);
+    return t;
+  }
+
+  function renderCombo() {
+    const range = state.mode === "range";
+    if (!day) { $("comboBody").innerHTML = ""; $("tally").textContent = ""; return; }
+    const isEtf = (x) => /^00/.test(x.code);
+    const { rows: allRows, present } = comboRows();
+    const rows = state.etf === "1" ? allRows.filter((x) => !isEtf(x)) : allRows;
+    $("etfToggle").setAttribute("aria-pressed", state.etf === "1");
+    const counts = Object.fromEntries(Object.entries(COMBO_FILTERS).map(([k, f]) => [k, rows.filter(f).length]));
+    $("comboFilter").querySelectorAll("button").forEach((b) => {
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", b.dataset.f === state.cf);
+      const base = b.dataset.label || (b.dataset.label = b.textContent);
+      b.innerHTML = `${base}<span class="n">${counts[b.dataset.f]}</span>`;
+    });
+    $("comboSort").value = state.cs;
+
+    const key = state.cs;
+    const val = (x) => (key === "score" ? x.score : key === "inst" ? x.inst : x.v[key]);
+    let list = rows.filter(COMBO_FILTERS[state.cf] || COMBO_FILTERS.all);
+    if (state.q) list = list.filter((x) => matchQ(x, state.q));
+    const strength = (x) => Math.abs(x.inst || 0) + Math.abs(x.v.major || 0);
+    // 賣方篩選時把最負的排前面，其餘由大到小
+    const desc = !["sell2", "tysell", "imsell"].includes(state.cf);
+    list.sort((a, b) => {
+      const va = val(a), vb = val(b);
+      if (va == null && vb == null) return strength(b) - strength(a);
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (va !== vb) return desc ? vb - va : va - vb;
+      return strength(b) - strength(a);
+    });
+    const shown = list.slice(0, 150);
+
+    const cell = (n) => (n == null ? `<td class="c-num na">—</td>` : `<td class="c-num ${signCls(n)}">${signed(n)}</td>`);
+    $("comboBody").innerHTML = shown.length ? shown.map((x, i) => {
+      const sc = x.score > 0 ? "up" : x.score < 0 ? "down" : "flat";
+      return `<tr>
+        <td class="c-rk">${i + 1}</td>
+        <td class="c-cd">${esc(x.code)}</td>
+        <td class="c-nm"><a href="https://www.wantgoo.com/stock/${encodeURIComponent(x.code)}" target="_blank" rel="noopener">${esc(x.name)}</a></td>
+        ${cell(x.v.foreign)}${cell(x.v.trust)}${cell(x.v.dealer)}
+        ${x.inst == null ? `<td class="c-num c-inst na">—</td>` : `<td class="c-num c-inst ${signCls(x.inst)}">${signed(x.inst)}</td>`}
+        ${cell(x.v.major)}
+        <td class="c-num">${x.close != null ? fmt(x.close, 2) : "—"}</td>
+        <td class="c-num ${signCls(x.change)}">${x.change != null ? signed(x.change, 2) : "—"}</td>
+        <td class="c-sig"><span class="score ${sc}" title="買方數減賣方數">${x.score > 0 ? "+" : ""}${x.score}</span>${x.tags.map(([c, t]) => `<span class="sig ${c}">${t}</span>`).join("")}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="11" class="empty">沒有符合條件的股票</td></tr>`;
+
+    const mk = MKT_NAME[state.mkt] || "";
+    const span = range ? `區間 ${state.from.replace(/-/g, "/")}～${state.to.replace(/-/g, "/")}` : `資料日 ${day.date}`;
+    $("subline").textContent = `${mk}綜合分析｜${span}`;
+    const missing = COMBO_CATS.filter((c) => !present.includes(c)).map((c) => CAT_NAME[c]);
+    $("tally").innerHTML = `比對 ${present.map((c) => CAT_NAME[c]).join("、")} 共 ${rows.length} 檔${state.etf === "1" ? `（已排除 ETF ${allRows.length - rows.length} 檔）` : ""}，符合條件 ${list.length} 檔` +
+      (list.length > shown.length ? `（顯示前 ${shown.length} 檔）` : "") + (missing.length ? `｜${missing.join("、")}這次沒有資料` : "");
+    $("sourceLink").innerHTML = "";
+    const demo = day.demo ? "目前顯示的是<b>示範資料</b>。<br>" : "";
+    setNotice(`${demo}綜合分析把同一來源的外資、投信、自營商、主力排行依股票代碼對齊。每份排行只有買、賣超各前 50 名，` +
+      `「—」代表沒進那份排行，<b>不等於 0</b>；三大法人＝已知的外資＋投信＋自營商相加。共振分數＝買超方數 − 賣超方數（-4～+4）。` +
+      (range ? "區間模式下各欄為區間累計的近似值。" : ""));
+  }
+
   /* ---------- 事件 ---------- */
   $("catTabs").addEventListener("click", (e) => {
     const c = e.target.closest("button[data-cat]");
@@ -332,6 +455,12 @@
   });
   $("srcSelect").addEventListener("change", (e) => { state.src = e.target.value; renderBoard(); });
   $("dateSelect").addEventListener("change", (e) => loadDay(e.target.value));
+  $("comboFilter").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-f]");
+    if (b) { state.cf = b.dataset.f; renderBoard(); }
+  });
+  $("etfToggle").addEventListener("click", () => { state.etf = state.etf === "1" ? "0" : "1"; renderBoard(); });
+  $("comboSort").addEventListener("change", (e) => { state.cs = e.target.value; renderBoard(); });
   $("modeSeg").addEventListener("click", (e) => {
     const m = e.target.closest("button[data-mode]");
     if (m) setMode(m.dataset.mode);
