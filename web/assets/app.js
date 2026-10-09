@@ -230,14 +230,14 @@
         ? `<span class="days-badge${r.days === total ? " full" : ""}" title="區間 ${total} 個交易日中有 ${r.days} 日上榜">${r.days}/${total}日</span>`
         : (s ? `<span class="streak" title="連續 ${s} 個交易日上榜">連${s}日</span>` : "");
       const hit = state.q && matchQ(r, state.q);
-      const px = r.close != null
-        ? `<span class="px"><span>${fmt(r.close, 2)}</span><span class="chg ${signCls(r.change)}">${r.change != null ? signed(r.change, 2) : ""}</span></span>`
-        : `<span class="px"></span>`;
+      const chg = r.change != null ? `<span class="chg ${signCls(r.change)}">${signed(r.change, 2)}</span>` : `<span class="chg flat">—</span>`;
       return `<li class="row${hit ? " hit" : ""}" style="--w:${w}%">
         <span class="rk${r.rank <= 3 ? " rk-top" : ""}">${r.rank}</span>
-        <span class="nm"><a href="https://www.wantgoo.com/stock/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.name)}</a><span class="cd">${esc(r.code)}</span>${badge}</span>
-        ${px}
+        <span class="cd">${esc(r.code)}</span>
+        <span class="nm"><a href="https://www.wantgoo.com/stock/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.name)}</a>${badge}</span>
         <span class="net ${side === "buy" ? "up" : "down"}">${signed(r.net)}</span>
+        <span class="px">${r.close != null ? fmt(r.close, 2) : "—"}</span>
+        ${chg}
       </li>`;
     }).join("");
   }
@@ -283,6 +283,8 @@
     const sumB = b.buy.reduce((s, r) => s + r.net, 0);
     const sumS = b.sell.reduce((s, r) => s + r.net, 0);
 
+    document.querySelectorAll(".thead .h-net").forEach((el) => { el.textContent = range ? "累計超張數" : "超張數"; });
+    document.querySelectorAll(".thead .h-px").forEach((el) => { el.textContent = range ? "最新收盤" : "收盤價"; });
     const label = `${MKT_NAME[b.market] || b.market_name}${CAT_NAME[b.category] || b.category_name}`;
     if (range) {
       const span = `${state.from.replace(/-/g, "/")}～${state.to.replace(/-/g, "/")}`;

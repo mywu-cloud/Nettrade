@@ -160,7 +160,7 @@ button, select, input { font: inherit; color: inherit; }
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: 2.2em minmax(0, 1fr) auto 6.2em;
+  grid-template-columns: 2.4em 4.4em minmax(0, 1fr) 6.2em 5em 4.4em;
   align-items: center;
   gap: 10px;
   padding: 8px 18px;
@@ -181,15 +181,21 @@ button, select, input { font: inherit; color: inherit; }
 .nm { min-width: 0; }
 .nm a { color: inherit; text-decoration: none; font-weight: 500; }
 .nm a:hover { text-decoration: underline; }
-.nm .cd { color: var(--muted); font-size: 12px; margin-left: 6px; }
+.row > .cd { color: var(--muted); font-size: 13px; }
+.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .streak {
   display: inline-block; margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 9px; vertical-align: 1px;
   border: 1px solid currentColor;
 }
 .col-buy .streak { color: var(--up); }
 .col-sell .streak { color: var(--down); }
-.px { text-align: right; font-size: 13px; line-height: 1.25; }
-.px .chg { display: block; font-size: 12px; }
+.px { text-align: right; font-size: 14px; }
+.row > .chg { text-align: right; font-size: 13px; }
+/* 表頭 */
+.row.thead { padding-top: 6px; padding-bottom: 6px; color: var(--muted); background: var(--bg); }
+.row.thead::before { display: none; }
+.row.thead > span { color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.row.thead .nm { overflow: visible; }
 .net { text-align: right; font-weight: 700; font-size: 16px; }
 .up { color: var(--up); }
 .down { color: var(--down); }
@@ -203,8 +209,10 @@ button, select, input { font: inherit; color: inherit; }
 
 /* ============ 平板 ============ */
 @media (max-width: 980px) {
-  .row { grid-template-columns: 2em minmax(0, 1fr) 5.6em; padding: 8px 12px; }
-  .px { display: none; }
+  .row { grid-template-columns: 2em 3.9em minmax(0, 1fr) 5.4em 4.4em 3.8em; gap: 6px; padding: 8px 10px; }
+  .net { font-size: 15px; }
+  .px, .row > .chg { font-size: 12px; }
+  .streak, .days-badge { display: none; }
   .search { margin-left: 0; flex: 1 1 180px; }
   .search input { width: 100%; }
 }
@@ -225,8 +233,10 @@ button, select, input { font: inherit; color: inherit; }
   .board[data-side="buy"] .col-sell, .board[data-side="sell"] .col-buy { display: none; }
   .col h2 { display: none; }
   .col-buy h2 { justify-content: flex-start; }
-  .row { grid-template-columns: 1.9em minmax(0, 1fr) auto 5.4em; padding: 10px 12px; }
-  .px { display: block; }
+  .row { grid-template-columns: 1.5em 3.3em minmax(0, 1fr) 4.9em 4.1em 3.3em; gap: 4px; padding: 10px 8px; }
+  .row > .cd { font-size: 12px; }
+  .net { font-size: 14px; }
+  .row.thead > span { font-size: 11px; letter-spacing: -.02em; }
   .col-buy .row::before { right: auto; left: 0; border-radius: 0 3px 3px 0; }
 }
 
