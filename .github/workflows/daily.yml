@@ -1,0 +1,89 @@
+name: daily-chip-rank
+
+on:
+  schedule:
+    # GitHub cron 用 UTC：10:40 UTC = 台北 18:40（法人資料約 15:00–16:30 公布，主力較晚）
+    - cron: "40 10 * * 1-5"
+  push:                       # 改了網頁或設定時，只重新部署網頁（不抓資料）
+    branches: [main]
+    paths: ["web/**", ".github/workflows/daily.yml"]
+  workflow_dispatch:          # 可在 Actions 頁面手動執行
+    inputs:
+      only:
+        description: "只跑指定來源（fubon,wantgoo,twse），空白=全部"
+        required: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-chip-rank
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+        if: github.event_name != 'push'
+
+      - name: Install
+        if: github.event_name != 'push'
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Test parsers
+        if: github.event_name != 'push'
+        run: python -m pytest -q tests
+
+      - name: Scrape
+        if: github.event_name != 'push'
+        env:
+          TZ: Asia/Taipei
+          ONLY: ${{ github.event.inputs.only }}
+        run: |
+          set +e
+          if [ -n "$ONLY" ]; then
+            python -m scraper.main --only "$ONLY"
+          else
+            python -m scraper.main
+          fi
+          code=$?
+          # 結束碼 2 = 所有來源都沒資料（國定假日、颱風假或尚未公布），不算失敗
+          if [ "$code" = "2" ]; then echo "::warning::今天沒有抓到任何資料（休市或尚未公布）"; exit 0; fi
+          exit $code
+
+      - name: Commit data
+        if: github.event_name != 'push'
+        run: |
+          git config user.name  "chip-rank-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add web/data
+          if [ -d archive ]; then git add archive; fi
+          if git diff --cached --quiet; then echo "沒有新資料"; exit 0; fi
+          git commit -m "data: $(TZ=Asia/Taipei date +%F)"
+          git pull --rebase --autostash
+          git push
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: scrape
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
