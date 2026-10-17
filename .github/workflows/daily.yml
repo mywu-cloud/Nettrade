@@ -4,6 +4,7 @@ on:
   schedule:
     # GitHub cron 用 UTC：10:40 UTC = 台北 18:40（法人資料約 15:00–16:30 公布，主力較晚）
     - cron: "40 10 * * 1-5"
+    - cron: "7 9 * * 1-5"   # 台北 17:07 提早補跑（避開熱門分鐘，降低排程延遲影響）
   workflow_dispatch:          # 可在 Actions 頁面手動執行
     inputs:
       only:
